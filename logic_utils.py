@@ -18,7 +18,8 @@ def check_guess(guess, secret):
 
     outcome examples: "Win", "Too High", "Too Low"
     """
-    # FIXME: Logic breaks here - every function in this module is an unimplemented stub, so `from logic_utils import check_guess` in tests/test_game_logic.py raises NotImplementedError and the whole suite errors out; also note the contract mismatch: this docstring (and app.py) return a (outcome, message) TUPLE while the tests assert a bare string like "Win"
+    # FIXME: Logic breaks here - every function in this module is still an unimplemented stub, so all three tests in tests/test_game_logic.py fail with NotImplementedError; move the real (bug-fixed) bodies over from app.py and have app.py import them instead of defining its own copies.
+    # FIXME: Logic breaks here - contract mismatch: this docstring and app.py return an (outcome, message) TUPLE, but the tests assert `result == "Win"`, a bare string; pick one shape - simplest is to return just the outcome string here and build the emoji message in app.py.
     raise NotImplementedError("Refactor this function from app.py into logic_utils.py")
 
 

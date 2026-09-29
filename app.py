@@ -7,7 +7,8 @@ def get_range_for_difficulty(difficulty: str):
     if difficulty == "Normal":
         return 1, 100
     if difficulty == "Hard":
-        return 1, 50  # FIXME: Logic breaks here - "Hard" gives a NARROWER range (1-50) than "Normal" (1-100), so Hard is actually the easier difficulty
+        # FIXME: Logic breaks here - "Hard" returns the NARROW 1-50 range while "Normal" returns 1-100, making Hard the easiest setting; it should return a range wider than Normal (e.g. 1, 200) so difficulty actually increases.
+        return 1, 50
     return 1, 100
 
 
@@ -34,11 +35,13 @@ def check_guess(guess, secret):
         return "Win", "🎉 Correct!"
 
     try:
-        if guess > secret:  # FIXME: Logic breaks here - the two branches below are swapped: a guess ABOVE the secret tells the player to go HIGHER and a guess below tells them to go LOWER, so every hint points away from the answer
+        # FIXME: Logic breaks here - the two branches below are swapped, so a guess ABOVE the secret is told to go HIGHER and every hint points away from the answer; guess > secret must return ("Too High", "Go LOWER!") and the else must return ("Too Low", "Go HIGHER!").
+        if guess > secret:
             return "Too High", "📈 Go HIGHER!"
         else:
             return "Too Low", "📉 Go LOWER!"
-    except TypeError:  # FIXME: Logic breaks here - silently falling back to STRING comparison when the types mismatch makes "9" > "50" true, so hints stay wrong even after the arrows are fixed; it should reject or coerce the bad type instead
+    # FIXME: Logic breaks here - this fallback hides the type error by re-comparing as strings, where "9" > "50" is True, so mismatched types produce confidently wrong hints; delete the fallback and guarantee check_guess always receives two ints (coerce or reject in parse_guess instead).
+    except TypeError:
         g = str(guess)
         if g == secret:
             return "Win", "🎉 Correct!"
@@ -49,13 +52,15 @@ def check_guess(guess, secret):
 
 def update_score(current_score: int, outcome: str, attempt_number: int):
     if outcome == "Win":
-        points = 100 - 10 * (attempt_number + 1)  # FIXME: Logic breaks here - off-by-one: attempt_number is already 1-based when passed in, so a winner is charged for one extra attempt (a first-try win scores 80 instead of 100)
+        # FIXME: Logic breaks here - attempt_number is already 1-based, so the +1 overcharges by one attempt and a first-try win scores 80 instead of 100; it should be points = 100 - 10 * (attempt_number - 1).
+        points = 100 - 10 * (attempt_number + 1)
         if points < 10:
             points = 10
         return current_score + points
 
     if outcome == "Too High":
-        if attempt_number % 2 == 0:  # FIXME: Logic breaks here - a "Too High" guess AWARDS +5 on even-numbered attempts, so wrong guesses are randomly rewarded while "Too Low" is always penalized -5
+        # FIXME: Logic breaks here - a "Too High" guess ADDS +5 on even-numbered attempts, randomly rewarding wrong answers while "Too Low" always costs -5; drop this parity branch so both wrong outcomes apply the same penalty (return current_score - 5).
+        if attempt_number % 2 == 0:
             return current_score + 5
         return current_score - 5
 
@@ -89,10 +94,12 @@ low, high = get_range_for_difficulty(difficulty)
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
-if "secret" not in st.session_state:  # FIXME: Logic breaks here - the secret is only generated on the FIRST run, so changing difficulty mid-session leaves a secret that can sit outside the new range and be unguessable
+# FIXME: Logic breaks here - the secret is generated once on the first run only, so switching difficulty later leaves a secret outside the new range and the game is unwinnable; also track the active difficulty in session_state and regenerate the secret whenever it changes.
+if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
-if "attempts" not in st.session_state:  # FIXME: Logic breaks here - attempts starts at 1 instead of 0, so the player silently loses one turn and "Attempts left" is off by one from the very first render
+# FIXME: Logic breaks here - attempts starts at 1 while the New Game path resets it to 0, so the very first game shows and allows one fewer attempt than the limit; initialize it to 0 to match the reset path.
+if "attempts" not in st.session_state:
     st.session_state.attempts = 1
 
 if "score" not in st.session_state:
@@ -107,7 +114,8 @@ if "history" not in st.session_state:
 st.subheader("Make a guess")
 
 st.info(
-    f"Guess a number between 1 and 100. "  # FIXME: Logic breaks here - the range is hardcoded to 1-100 instead of using the low/high computed from difficulty, so Easy and Hard players are told to guess in the wrong range
+    # FIXME: Logic breaks here - the range is hardcoded to 1-100 and ignores the low/high already computed from difficulty, contradicting the sidebar; interpolate them instead: f"Guess a number between {low} and {high}. ".
+    f"Guess a number between 1 and 100. "
     f"Attempts left: {attempt_limit - st.session_state.attempts}"
 )
 
@@ -131,9 +139,11 @@ with col2:
 with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
-if new_game:  # FIXME: Logic breaks here - "New Game" resets only attempts and secret; status, score and history survive, so after a win or loss the rerun immediately hits the status check below and the game is permanently unplayable
+# FIXME: Logic breaks here - New Game resets only attempts and secret, leaving status/score/history from the last round, so after a win or loss the rerun hits the status guard below and st.stop()s forever; this block must also set status to "playing", score to 0 and history to [].
+if new_game:
     st.session_state.attempts = 0
-    st.session_state.secret = random.randint(1, 100)  # FIXME: Logic breaks here - hardcodes the 1-100 range instead of calling get_range_for_difficulty(difficulty), so a new Easy or Hard game gets a secret outside its own range
+    # FIXME: Logic breaks here - hardcodes randint(1, 100) instead of the current difficulty's range, so a new Easy or Hard game can pick a secret outside the range shown to the player; use random.randint(low, high).
+    st.session_state.secret = random.randint(1, 100)
     st.success("New game started.")
     st.rerun()
 
@@ -145,7 +155,8 @@ if st.session_state.status != "playing":
     st.stop()
 
 if submit:
-    st.session_state.attempts += 1  # FIXME: Logic breaks here - the attempt is counted BEFORE the input is validated, so typing "abc" or submitting an empty box burns a turn
+    # FIXME: Logic breaks here - the attempt counter increments before parse_guess runs, so invalid input like "abc" or an empty box burns a turn; move this increment into the else branch that handles a successfully parsed guess.
+    st.session_state.attempts += 1
 
     ok, guess_int, err = parse_guess(raw_guess)
 
@@ -155,7 +166,8 @@ if submit:
     else:
         st.session_state.history.append(guess_int)
 
-        if st.session_state.attempts % 2 == 0:  # FIXME: Logic breaks here - on every even attempt the secret is cast to a str before comparison, so check_guess falls into its string-comparison fallback and the hints flip meaning every other turn
+        # FIXME: Logic breaks here - on even attempts the secret is cast to a str before comparison, forcing check_guess into its string-comparison fallback so the hints flip meaning every other turn; delete this whole if/else and pass st.session_state.secret straight to check_guess.
+        if st.session_state.attempts % 2 == 0:
             secret = str(st.session_state.secret)
         else:
             secret = st.session_state.secret
