@@ -1,73 +1,13 @@
 import random
 import streamlit as st
 
-def get_range_for_difficulty(difficulty: str):
-    if difficulty == "Easy":
-        return 1, 20
-    if difficulty == "Normal":
-        return 1, 100
-    if difficulty == "Hard":
-        # FIXME: Logic breaks here - "Hard" returns the NARROW 1-50 range while "Normal" returns 1-100, making Hard the easiest setting; it should return a range wider than Normal (e.g. 1, 200) so difficulty actually increases.
-        return 1, 50
-    return 1, 100
-
-
-def parse_guess(raw: str):
-    if raw is None:
-        return False, None, "Enter a guess."
-
-    if raw == "":
-        return False, None, "Enter a guess."
-
-    try:
-        if "." in raw:
-            value = int(float(raw))
-        else:
-            value = int(raw)
-    except Exception:
-        return False, None, "That is not a number."
-
-    return True, value, None
-
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        # FIXME: Logic breaks here - the two branches below are swapped, so a guess ABOVE the secret is told to go HIGHER and every hint points away from the answer; guess > secret must return ("Too High", "Go LOWER!") and the else must return ("Too Low", "Go HIGHER!").
-        if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
-        else:
-            return "Too Low", "📉 Go LOWER!"
-    # FIXME: Logic breaks here - this fallback hides the type error by re-comparing as strings, where "9" > "50" is True, so mismatched types produce confidently wrong hints; delete the fallback and guarantee check_guess always receives two ints (coerce or reject in parse_guess instead).
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
-
-
-def update_score(current_score: int, outcome: str, attempt_number: int):
-    if outcome == "Win":
-        # FIXME: Logic breaks here - attempt_number is already 1-based, so the +1 overcharges by one attempt and a first-try win scores 80 instead of 100; it should be points = 100 - 10 * (attempt_number - 1).
-        points = 100 - 10 * (attempt_number + 1)
-        if points < 10:
-            points = 10
-        return current_score + points
-
-    if outcome == "Too High":
-        # FIXME: Logic breaks here - a "Too High" guess ADDS +5 on even-numbered attempts, randomly rewarding wrong answers while "Too Low" always costs -5; drop this parity branch so both wrong outcomes apply the same penalty (return current_score - 5).
-        if attempt_number % 2 == 0:
-            return current_score + 5
-        return current_score - 5
-
-    if outcome == "Too Low":
-        return current_score - 5
-
-    return current_score
+from logic_utils import (
+    OUTCOME_MESSAGES,
+    check_guess,
+    get_range_for_difficulty,
+    parse_guess,
+    update_score,
+)
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -166,16 +106,10 @@ if submit:
     else:
         st.session_state.history.append(guess_int)
 
-        # FIXME: Logic breaks here - on even attempts the secret is cast to a str before comparison, forcing check_guess into its string-comparison fallback so the hints flip meaning every other turn; delete this whole if/else and pass st.session_state.secret straight to check_guess.
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
-
-        outcome, message = check_guess(guess_int, secret)
+        outcome = check_guess(guess_int, st.session_state.secret)
 
         if show_hint:
-            st.warning(message)
+            st.warning(OUTCOME_MESSAGES[outcome])
 
         st.session_state.score = update_score(
             current_score=st.session_state.score,

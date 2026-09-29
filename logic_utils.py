@@ -1,6 +1,22 @@
+"""Pure game logic for the number guessing game (no Streamlit imports)."""
+
+# Message shown to the player for each outcome returned by check_guess().
+OUTCOME_MESSAGES = {
+    "Win": "🎉 Correct!",
+    "Too High": "📉 Go LOWER!",
+    "Too Low": "📈 Go HIGHER!",
+}
+
+
 def get_range_for_difficulty(difficulty: str):
     """Return (low, high) inclusive range for a given difficulty."""
-    raise NotImplementedError("Refactor this function from app.py into logic_utils.py")
+    if difficulty == "Easy":
+        return 1, 20
+    if difficulty == "Normal":
+        return 1, 100
+    if difficulty == "Hard":
+        return 1, 200
+    return 1, 100
 
 
 def parse_guess(raw: str):
@@ -9,20 +25,47 @@ def parse_guess(raw: str):
 
     Returns: (ok: bool, guess_int: int | None, error_message: str | None)
     """
-    raise NotImplementedError("Refactor this function from app.py into logic_utils.py")
+    if raw is None:
+        return False, None, "Enter a guess."
+
+    if raw.strip() == "":
+        return False, None, "Enter a guess."
+
+    try:
+        value = int(float(raw)) if "." in raw else int(raw)
+    except ValueError:
+        return False, None, "That is not a number."
+
+    return True, value, None
 
 
 def check_guess(guess, secret):
     """
-    Compare guess to secret and return (outcome, message).
+    Compare guess to secret and return the outcome as a string.
 
-    outcome examples: "Win", "Too High", "Too Low"
+    Returns one of: "Win", "Too High", "Too Low"
+    Both arguments are coerced to int, so a TypeError can never push this
+    into a string comparison where "9" > "50".
     """
-    # FIXME: Logic breaks here - every function in this module is still an unimplemented stub, so all three tests in tests/test_game_logic.py fail with NotImplementedError; move the real (bug-fixed) bodies over from app.py and have app.py import them instead of defining its own copies.
-    # FIXME: Logic breaks here - contract mismatch: this docstring and app.py return an (outcome, message) TUPLE, but the tests assert `result == "Win"`, a bare string; pick one shape - simplest is to return just the outcome string here and build the emoji message in app.py.
-    raise NotImplementedError("Refactor this function from app.py into logic_utils.py")
+    guess = int(guess)
+    secret = int(secret)
+
+    if guess == secret:
+        return "Win"
+    if guess > secret:
+        return "Too High"
+    return "Too Low"
 
 
 def update_score(current_score: int, outcome: str, attempt_number: int):
-    """Update score based on outcome and attempt number."""
-    raise NotImplementedError("Refactor this function from app.py into logic_utils.py")
+    """Update score based on outcome and attempt number (1-based)."""
+    if outcome == "Win":
+        points = 100 - 10 * (attempt_number - 1)
+        if points < 10:
+            points = 10
+        return current_score + points
+
+    if outcome in ("Too High", "Too Low"):
+        return current_score - 5
+
+    return current_score
