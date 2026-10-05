@@ -87,11 +87,25 @@ st.subheader("Make a guess")
 # the debug expander and in the final win/lose message.
 # COLLAB: Claude Code flagged 2d as already-fixed-by-2a rather than a separate
 # edit, which is why there is no new arithmetic in this block.
-st.info(
-    f"Guess a number between {low} and {high}. "
-    f"Attempts left: {attempt_limit - st.session_state.attempts}  |  "
-    f"Score: {st.session_state.score}"
-)
+# FIX [15]: the status line is reserved with st.empty() here and filled in at
+# the BOTTOM of the script, after the guess has been handled. Written inline,
+# it rendered before the submit handler ran, so "Attempts left" and "Score"
+# were always one guess stale -- guess once and it still read "8 left".
+# COLLAB: this one is not from my original bug table. It turned up when Claude
+# Code ran a scripted demo game to collect real numbers for the README
+# walkthrough, and the captured output showed the counter not moving.
+status_box = st.empty()
+
+
+def render_status():
+    status_box.info(
+        f"Guess a number between {low} and {high}. "
+        f"Attempts left: {attempt_limit - st.session_state.attempts}  |  "
+        f"Score: {st.session_state.score}"
+    )
+
+
+render_status()
 
 with st.expander("Developer Debug Info"):
     st.write("Secret:", st.session_state.secret)
@@ -199,6 +213,9 @@ if submit:
                     f"The secret was {st.session_state.secret}. "
                     f"Score: {st.session_state.score}"
                 )
+
+# FIX [15]: redraw the status line now that the guess has been processed.
+render_status()
 
 st.divider()
 st.caption("Built by an AI that claims this code is production-ready.")
