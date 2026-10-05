@@ -1,0 +1,83 @@
+# Linting output - Challenge 3
+
+Generated: 2026-10-05
+
+## BEFORE
+
+$ python -m ruff check . --output-format concise
+app.py:1:1: D100 Missing docstring in public module
+app.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+app.py:111:5: D205 1 blank line required between summary line and description
+app.py:111:5: D212 [*] Multi-line docstring summary should start at the first line
+app.py:136:5: D205 1 blank line required between summary line and description
+app.py:136:5: D212 [*] Multi-line docstring summary should start at the first line
+logic_utils.py:33:5: D212 [*] Multi-line docstring summary should start at the first line
+logic_utils.py:83:5: D212 [*] Multi-line docstring summary should start at the first line
+logic_utils.py:151:5: D212 [*] Multi-line docstring summary should start at the first line
+logic_utils.py:173:5: D212 [*] Multi-line docstring summary should start at the first line
+tests/test_edge_cases.py:1:1: D212 [*] Multi-line docstring summary should start at the first line
+tests/test_edge_cases.py:32:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:39:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:45:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:56:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:63:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:77:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:84:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:92:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:110:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:118:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:124:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:132:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:144:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:152:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:162:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:168:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:172:5: D103 Missing docstring in public function
+tests/test_edge_cases.py:179:5: D103 Missing docstring in public function
+tests/test_game_logic.py:1:1: D100 Missing docstring in public module
+tests/test_game_logic.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+tests/test_game_logic.py:3:5: D103 Missing docstring in public function
+tests/test_game_logic.py:8:5: D103 Missing docstring in public function
+tests/test_game_logic.py:13:5: D103 Missing docstring in public function
+tests/test_game_logic.py:24:1: E402 Module level import not at top of file
+tests/test_game_logic.py:24:1: I001 [*] Import block is un-sorted or un-formatted
+tests/test_game_logic.py:27:5: D103 Missing docstring in public function
+tests/test_game_logic.py:33:5: D103 Missing docstring in public function
+tests/test_game_logic.py:41:5: D103 Missing docstring in public function
+tests/test_game_logic.py:48:5: D103 Missing docstring in public function
+tests/test_game_logic.py:52:5: D103 Missing docstring in public function
+tests/test_game_logic.py:57:5: D103 Missing docstring in public function
+tests/test_game_logic.py:64:5: D103 Missing docstring in public function
+tests/test_game_logic.py:69:5: D103 Missing docstring in public function
+tests/test_game_logic.py:73:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:1:1: D212 [*] Multi-line docstring summary should start at the first line
+tests/test_ui_helpers.py:10:1: I001 [*] Import block is un-sorted or un-formatted
+tests/test_ui_helpers.py:24:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:28:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:39:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:43:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:52:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:57:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:63:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:81:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:85:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:100:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:105:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:115:5: D103 Missing docstring in public function
+tests/test_ui_helpers.py:121:5: D103 Missing docstring in public function
+Found 60 errors.
+[*] 12 fixable with the `--fix` option.
+
+$ python -m pycodestyle --max-line-length=100 app.py logic_utils.py tests/
+tests/test_game_logic.py:3:1: E302 expected 2 blank lines, found 1
+tests/test_game_logic.py:8:1: E302 expected 2 blank lines, found 1
+tests/test_game_logic.py:13:1: E302 expected 2 blank lines, found 1
+tests/test_game_logic.py:24:1: E402 module level import not at top of file
+
+## AFTER
+
+$ python -m ruff check .
+All checks passed!
+
+$ python -m pycodestyle --max-line-length=100 app.py logic_utils.py tests/
+(no output - clean)

@@ -1,9 +1,31 @@
+"""Streamlit front end for the Game Glitch Investigator guessing game.
+
+This module is the presentation layer only: it owns widgets, ``session_state``
+and rendering. Every game rule lives in :mod:`logic_utils`, which has no
+Streamlit imports and is unit-tested directly.
+
+Comment markers used throughout:
+
+``# FIX [n]``
+    A repair to one of the bugs documented in ``reflection.md``.
+``# EDGE CASE [n]``
+    Hardening added for Challenge 1 (edge-case testing).
+``# UI [n]``
+    A Challenge 4 presentation enhancement.
+``# COLLAB``
+    How a bug was found and verified while pairing with an AI assistant.
+"""
+
 import random
+
 import streamlit as st
 
 from logic_utils import (
+    OUTCOME_COLORS,
     OUTCOME_MESSAGES,
+    build_session_table,
     check_guess,
+    get_proximity,
     get_range_for_difficulty,
     parse_guess,
     update_score,
@@ -54,6 +76,7 @@ if "secret" not in st.session_state or st.session_state.difficulty != difficulty
     st.session_state.status = "playing"
     st.session_state.score = 0
     st.session_state.history = []
+    st.session_state.log = []
 
 # FIX [2a]: attempts now starts at 0, matching the New Game reset path. It has
 # ONE meaning everywhere: "valid guesses made so far". It used to start at 1
@@ -75,6 +98,12 @@ if "status" not in st.session_state:
 
 if "history" not in st.session_state:
     st.session_state.history = []
+
+# UI [3]: a richer per-guess log that backs the session summary table.
+# This is ADDITIVE -- `history` keeps its original shape (a list of ints) so
+# nothing that reads it, including the debug panel, changes behaviour.
+if "log" not in st.session_state:
+    st.session_state.log = []
 
 st.subheader("Make a guess")
 
@@ -98,14 +127,56 @@ status_box = st.empty()
 
 
 def render_status():
-    status_box.info(
-        f"Guess a number between {low} and {high}. "
-        f"Attempts left: {attempt_limit - st.session_state.attempts}  |  "
-        f"Score: {st.session_state.score}"
-    )
+    """Render the metrics row and attempts progress bar.
+
+    UI [1]: the plain ``st.info()`` status line is now three metric tiles plus
+    a progress bar, drawn into the reserved ``st.empty()`` placeholder. Same
+    numbers, scannable at a glance instead of buried in a sentence.
+    """
+    with status_box.container():
+        used = st.session_state.attempts
+        left = attempt_limit - used
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("🎯 Range", f"{low} – {high}")
+        m2.metric("🎲 Attempts left", left, delta=f"-{used}" if used else None)
+        m3.metric("⭐ Score", st.session_state.score)
+
+        # The bar drains as attempts are used, and turns the caption red once
+        # the player is down to the last two guesses.
+        st.progress(max(0.0, left / attempt_limit))
+        if 0 < left <= 2:
+            st.caption(f":red[⚠️ Only {left} attempt(s) left!]")
 
 
 render_status()
+
+
+def render_session_table():
+    """Render the session summary table for the current round.
+
+    UI [3]: shows every guess with its result, Hot/Cold proximity and the
+    running score. Previously the only record of past guesses was a raw Python
+    list inside the debug expander. Renders nothing if no guesses were made.
+    """
+    if not st.session_state.log:
+        return
+
+    st.markdown("#### 📋 Session summary")
+    st.dataframe(
+        build_session_table(st.session_state.log),
+        hide_index=True,
+        width="stretch",
+    )
+
+    guesses = [e["guess"] for e in st.session_state.log]
+    best = min(guesses, key=lambda g: abs(g - st.session_state.secret))
+    st.caption(
+        f"Guesses: {len(guesses)}  |  "
+        f"Closest: {best}  |  "
+        f"Range tried: {min(guesses)} – {max(guesses)}"
+    )
+
 
 with st.expander("Developer Debug Info"):
     st.write("Secret:", st.session_state.secret)
@@ -135,6 +206,7 @@ if new_game:
     st.session_state.status = "playing"
     st.session_state.score = 0
     st.session_state.history = []
+    st.session_state.log = []
     st.success("New game started.")
     st.rerun()
 
@@ -143,6 +215,9 @@ if st.session_state.status != "playing":
         st.success("You already won. Start a new game to play again.")
     else:
         st.error("Game over. Start a new game to try again.")
+    # UI [3]: the finished round's table stays on screen instead of the board
+    # going blank, so the player can review how they narrowed it down.
+    render_session_table()
     st.stop()
 
 # FIX [14]: the guess box lives in a form with clear_on_submit instead of a
@@ -188,14 +263,35 @@ if submit:
         st.session_state.history.append(guess_int)
 
         outcome = check_guess(guess_int, st.session_state.secret)
+        proximity = get_proximity(guess_int, st.session_state.secret, low, high)
 
+        # UI [4]: colour-coded hint with a Hot/Cold proximity badge. The hint
+        # used to be a single amber st.warning() for every outcome, so "too
+        # high" and "too low" looked identical at a glance and gave no sense of
+        # whether the player was closing in. Direction now has its own colour
+        # (red = too high, blue = too low, green = win) via :color[...] markdown,
+        # and the badge says how close the guess landed.
         if show_hint:
-            st.warning(OUTCOME_MESSAGES[outcome])
+            color = OUTCOME_COLORS[outcome]
+            st.markdown(
+                f"### :{color}[{OUTCOME_MESSAGES[outcome]}]  &nbsp; {proximity}"
+            )
 
         st.session_state.score = update_score(
             current_score=st.session_state.score,
             outcome=outcome,
             attempt_number=st.session_state.attempts,
+        )
+
+        # UI [3]: record the guess for the session summary table.
+        st.session_state.log.append(
+            {
+                "attempt": st.session_state.attempts,
+                "guess": guess_int,
+                "outcome": outcome,
+                "proximity": proximity,
+                "score": st.session_state.score,
+            }
         )
 
         if outcome == "Win":
@@ -216,6 +312,8 @@ if submit:
 
 # FIX [15]: redraw the status line now that the guess has been processed.
 render_status()
+
+render_session_table()
 
 st.divider()
 st.caption("Built by an AI that claims this code is production-ready.")

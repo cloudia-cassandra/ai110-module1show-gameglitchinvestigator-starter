@@ -6,13 +6,23 @@ Answer each question in 3 to 5 sentences. Be specific and honest about what actu
 
 - What did the game look like the first time you ran it?
 
+It looked completely normal, which is the part that threw me. The page loaded with no errors, no
+red Streamlit traceback, a tidy sidebar with a difficulty dropdown and a "Range / Attempts
+allowed" caption, a guess box, Submit and New Game buttons, and a Developer Debug Info panel. If I
+had only screenshotted it I would have said it worked. The problems only appeared once I actually
+played: the hints started contradicting each other, the attempt counter did not match what the
+sidebar promised, and after the round ended the board was permanently dead. Nothing ever *crashed*
+— it just quietly gave wrong answers, which made it much harder to pin down than an error message
+would have been.
 
 - List at least two concrete bugs you noticed at the start  
   (for example: "the hints were backwards").
 1. would input "12390921309213" and it said to go lower, tried "1239092130921" and said go higher, tried "12390921309210" and said higher i think, all for it to take 15 attemps, and tell me the number was 60
 2. after 15 attempts, game is done, says "game over. start a new game to try again" -> click new game, and won't let me play again
 3. "new game" ignores selected difficulty
-4. "
+4. the attempt count didn't match the rules it showed me — the sidebar said 8 attempts allowed,
+   but I got 15 guesses in before the round ended, and typing something invalid still seemed to
+   cost me a turn
 5. sidebar doesn't update the allowed attempts, it's an static "8"
 
 **Bug Reproduction Logs**
@@ -175,11 +185,79 @@ been caught by the three tests the project shipped with.
 
 - How would you explain Streamlit "reruns" and session state to a friend who has never used Streamlit?
 
+The way I would put it: **Streamlit does not update your page, it re-runs your entire script from
+line 1 every single time you touch anything.** Click a button, type in a box, change a dropdown —
+the whole file executes again, top to bottom. So every normal Python variable you created is
+thrown away and rebuilt from scratch. `st.session_state` is the one box that survives that
+re-run; it is the only place a value can live if it needs to still be there after a click.
+
+That single idea explains almost every bug in this project. The secret number has to be in
+`session_state` or it would be re-rolled on every guess. `attempts` has to be in there or it could
+never count past 1. And because the script re-runs *in order*, **where** a line sits in the file
+is part of its behaviour, not just a style choice:
+
+- The status line was written above the submit handler, so Streamlit drew "Attempts left: 8"
+  *before* the guess was processed. The number was always one guess stale. Nothing was wrong with
+  the arithmetic — it was drawn too early. I fixed it by reserving the spot with `st.empty()` and
+  filling it at the bottom of the script.
+- I tried to clear the guess box with `st.session_state.guess_input = ""` after handling a guess,
+  and Streamlit raised `StreamlitAPIException: cannot be modified after the widget ... is
+  instantiated`. Once a widget exists in this run, its state is locked for this run. The supported
+  way is `st.form(clear_on_submit=True)`, which clears on the *next* run.
+- The guess box was keyed `f"guess_input_{difficulty}"`. Changing the dropdown changed the key,
+  which made it a *brand new widget* with empty state, silently wiping what the player had typed.
+  A widget's identity is its key.
+
+The mental shift was realising Streamlit is not an event-driven UI where a click runs one handler.
+It is a script that runs again from scratch, and `session_state` is the only memory between runs.
+Once I had that, the "secret number has commitment issues" symptom stopped being mysterious.
+
 ---
 
 ## 5. Looking ahead: your developer habits
 
 - What is one habit or strategy from this project that you want to reuse in future labs or projects?
-  - This could be a testing habit, a prompting strategy, or a way you used Git.
+
+**Drive the thing, do not just start it.** My instinct the whole way through was to treat "the app
+loaded with no errors" as proof a fix worked, and this project punished that twice. The
+`st.session_state.guess_input = ""` fix rendered a perfect page, returned HTTP 200 and logged
+nothing — and threw an exception the moment I pressed Submit. Running the app end to end with
+`streamlit.testing.v1.AppTest` (set the box, click Submit, read `session_state` back) also turned
+up a score of **-40** on a losing round, which I had never seen because I had never actually
+played a game all the way to a loss. Starting and working are two different checks, and only the
+second one is worth anything.
+
+The version of this for tests is: **ask for the real output before writing any assertion.** When I
+went to cover edge cases I assumed negatives, decimals and huge numbers were already handled.
+Rather than writing tests from the function signatures, we ran those inputs against the real
+functions and printed what came back. The three I assumed were fine *were* fine — but the probe
+also turned up three I had never thought to look for, including `int()` quietly accepting
+`"5_0"` as **50** and full-width `"１０"` as **10**. Tests written from a signature only confirm
+what the code already does; running the inputs first is what finds things.
+
 - What is one thing you would do differently next time you work with AI on a coding task?
+
+**Commit much more granularly, with real messages.** My history for most of this is `phase 1 done`,
+`phase 2, step 1 wip..`, `phase 2.4` — which tells a reader nothing, and told *me* nothing when I
+wanted to check what had already been fixed. At one point I had to ask the AI to re-read the
+working tree because neither of us was sure which repairs were committed and which were still
+loose, and a commit message I had asked for described work that was already pushed. When an AI is
+changing several files at once, the commit log is the only durable record of what actually
+happened, and "wip" throws that away. Next time: one commit per fix, with a message that says what
+was broken and why the change fixes it.
+
+I would also **ask for the explanation before the fix, on purpose.** I did this by accident on the
+first prompt — I asked it to explain the code rather than repair it, and it offered to start
+fixing immediately. Saying no there was the best decision I made on this project. If I had let it
+patch everything in the first message I would have had a working game and no idea why any of it
+had been broken.
+
 - In one or two sentences, describe how this project changed the way you think about AI generated code.
+
+I used to read AI-written code the way I read a textbook — if it looked reasonable and ran, I
+assumed it was right. This project was written by an AI that was confident enough to leave a
+`try/except TypeError` in place whose only purpose was to hide the bug directly above it, and the
+comment at the bottom of the file still claims the code is production-ready. Now I treat
+AI-generated code as a *draft by a fast, confident author who never tested it*: worth having,
+much faster than starting from nothing, but the burden of proof is on me, and "it looks fine and
+it runs" is the weakest evidence there is.

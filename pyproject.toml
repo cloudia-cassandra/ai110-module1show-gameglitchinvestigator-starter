@@ -1,0 +1,35 @@
+# Tooling configuration for the Game Glitch Investigator project.
+#
+# Challenge 3: the lint rules are committed here rather than passed as
+# command-line flags, so `ruff check .` reproduces exactly the run documented
+# in ai_interactions.md.
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors   (PEP 8 layout)
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes             (unused imports, undefined names)
+    "I",   # isort                (import ordering)
+    "N",   # pep8-naming          (naming conventions)
+    "D",   # pydocstyle           (docstring presence and format)
+    "UP",  # pyupgrade            (modern syntax)
+    "B",   # flake8-bugbear       (likely bugs)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test functions document themselves through their names and inline comments;
+# requiring a docstring on each of 79 of them adds noise without adding
+# information. The test MODULES still require a docstring (D100 stays on).
+"tests/*" = ["D103"]
+
+[tool.pytest.ini_options]
+# --doctest-modules runs the Examples: blocks in logic_utils.py docstrings as
+# real tests, so the documentation cannot drift out of sync with the code.
+addopts = "--doctest-modules logic_utils.py tests/"

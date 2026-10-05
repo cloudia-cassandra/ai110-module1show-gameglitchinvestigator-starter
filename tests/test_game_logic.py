@@ -1,14 +1,29 @@
-from logic_utils import check_guess
+"""Regression tests for the bugs documented in ``reflection.md``.
+
+The first three cases shipped with the project. The rest were added while
+fixing the bug reproduction log -- one test per row, so every documented bug
+has a test that would have caught it.
+"""
+
+from logic_utils import (
+    check_guess,
+    get_range_for_difficulty,
+    parse_guess,
+    update_score,
+)
+
 
 def test_winning_guess():
     # If the secret is 50 and guess is 50, it should be a win
     result = check_guess(50, 50)
     assert result == "Win"
 
+
 def test_guess_too_high():
     # If secret is 50 and guess is 60, hint should be "Too High"
     result = check_guess(60, 50)
     assert result == "Too High"
+
 
 def test_guess_too_low():
     # If secret is 50 and guess is 40, hint should be "Too Low"
@@ -20,8 +35,6 @@ def test_guess_too_low():
 # COLLAB: Claude Code drafted these from the bug table in reflection.md, one
 # test per row, so each documented bug has a test that would have caught it.
 # I reviewed each one against what I actually saw while playing.
-
-from logic_utils import parse_guess, update_score, get_range_for_difficulty
 
 
 def test_huge_guess_is_not_judged_as_low():
